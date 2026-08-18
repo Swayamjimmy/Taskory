@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request
-from backend.routes import task_routes, user_routes
+from backend.routes import task_routes, user_routes, dashboard_routes, external_routes
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import create_pool, init_db
 
@@ -36,3 +36,5 @@ async def health_check(pool=Depends(get_pool)):
 
 app.include_router(task_routes.router, prefix='/api')
 app.include_router(user_routes.router, prefix='/api')
+app.include_router(dashboard_routes.router, prefix='/api')
+app.include_router(external_routes.router, prefix='/api')

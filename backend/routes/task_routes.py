@@ -68,3 +68,21 @@ async def seed_database(pool=Depends(get_pool)):
         tasks_data.append((f'Task {i+1}', f'Description for task {i+1}', statuses[i%4], priorities[i%4], user_ids[i%len(user_ids)], None))
     await pool.executemany('INSERT INTO tasks (title, description, status, priority, assigned_to, due_date) VALUES ($1,$2,$3,$4,$5,$6)', tasks_data)
     return {'message': 'Database seeded successfully'}
+
+@router.post('/tasks/{task_id}/comments', status_code=201)
+async def add_comment(task_id: int, body: dict, pool=Depends(get_pool)):
+    # Insert the comment and return the created row
+    row = await pool.fetchrow(
+        'INSERT INTO comments (task_id, user_id, comment) VALUES ($1,$2,$3) RETURNING *',
+        task_id, body.get('user_id'), body.get('comment')
+    )
+    return dict(row)
+
+@router.get('/tasks/{task_id}/comments')
+async def get_comments(task_id: int, pool=Depends(get_pool)):
+    # Join with users table to include the commenter's name
+    rows = await pool.fetch(
+        'SELECT c.*, u.name as user_name FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.task_id = $1 ORDER BY c.created_at DESC',
+        task_id
+    )
+    return [dict(r) for r in rows]
