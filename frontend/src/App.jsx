@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
+import { TaskListPage } from './pages/TaskListPage';
+import { TaskDetailPage } from './pages/TaskDetailPage';
 
 // App shell with navigation and routing
 function App() {
@@ -11,6 +13,8 @@ function App() {
       </nav>
       <Routes>
         <Route path='/' element={<DashboardPage />} />
+        <Route path='/tasks' element={<TaskListPage />} />
+        <Route path='/tasks/:id' element={<TaskDetailPage />} />
       </Routes>
     </BrowserRouter>
   );
