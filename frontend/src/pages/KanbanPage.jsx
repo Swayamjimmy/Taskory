@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
-import { StatusBadge } from '../components/StatusBadge';
 import { PriorityBadge } from '../components/PriorityBadge';
 
 const COLUMNS = [
@@ -18,6 +17,7 @@ export function KanbanPage() {
   const loadTasks = () => api.getTasks({ limit: 100 }).then(data => setTasks(data.items));
   useEffect(() => { loadTasks(); }, []);
 
+  // --- Drag and Drop Handlers (Desktop) ---
   const handleDragStart = (taskId) => { draggedId.current = taskId; };
   const handleDragOver = (e, colKey) => { e.preventDefault(); setDragOver(colKey); };
   const handleDrop = async (colKey) => {
@@ -29,6 +29,12 @@ export function KanbanPage() {
     }
   };
 
+  // --- Dropdown Handler (Mobile Fallback) ---
+  const handleMobileStatusChange = async (taskId, newStatus) => {
+    await api.updateTask(taskId, { status: newStatus });
+    loadTasks();
+  };
+
   return (
     <div className='p-6'>
       <h1 className='text-2xl font-bold mb-4 dark:text-white'>Kanban Board</h1>
@@ -38,7 +44,7 @@ export function KanbanPage() {
             key={col.key}
             onDragOver={e => handleDragOver(e, col.key)}
             onDrop={() => handleDrop(col.key)}
-            className={`flex-1 min-w-[220px] bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-3 transition-colors ${dragOver === col.key ? 'bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-400' : ''}`}
+            className={`flex-1 min-w-[250px] bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-3 transition-colors ${dragOver === col.key ? 'bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-400' : ''}`}
           >
             <h2 className='font-semibold mb-3 dark:text-white'>{col.label}</h2>
             {tasks.filter(t => t.status === col.key).map(task => (
@@ -46,10 +52,29 @@ export function KanbanPage() {
                 key={task.id}
                 draggable
                 onDragStart={() => handleDragStart(task.id)}
-                className='bg-white dark:bg-gray-700 border dark:border-gray-600 rounded shadow p-3 mb-2 cursor-grab active:opacity-50 text-gray-900 dark:text-white'
+                className='bg-white dark:bg-gray-700 border dark:border-gray-600 rounded shadow p-3 mb-2 cursor-grab active:opacity-50 text-gray-900 dark:text-white flex flex-col'
               >
-                <p className='font-medium text-sm mb-1'>{task.title}</p>
-                <div className='flex gap-1'><PriorityBadge priority={task.priority} /></div>
+                <p className='font-medium text-sm mb-2'>{task.title}</p>
+                <div className='flex gap-1 mb-2'>
+                  <PriorityBadge priority={task.priority} />
+                </div>
+                
+                {/* --- MOBILE FALLBACK DROPDOWN --- */}
+                {/* Visible only on touch screens / small screens (md:hidden) */}
+                <div className="mt-auto pt-2 border-t dark:border-gray-600 md:hidden">
+                  <select 
+                    value={task.status}
+                    onChange={(e) => handleMobileStatusChange(task.id, e.target.value)}
+                    className="w-full text-xs border border-gray-300 dark:border-gray-500 rounded bg-gray-50 dark:bg-gray-600 dark:text-white p-1.5 outline-none"
+                  >
+                    <option value="pending">Move to Pending</option>
+                    <option value="in_progress">Move to In Progress</option>
+                    <option value="completed">Move to Completed</option>
+                    <option value="blocked">Move to Blocked</option>
+                  </select>
+                </div>
+                {/* -------------------------------- */}
+
               </div>
             ))}
           </div>
