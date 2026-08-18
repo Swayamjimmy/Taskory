@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from backend.routes import task_routes, user_routes
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import create_pool, init_db
 
@@ -23,7 +24,7 @@ app.add_middleware(
 )
 
 # Dependency that retrieves the database pool from app state
-def get_pool(request):
+def get_pool(request : Request):
     return request.app.state.db_pool
 
 # Health check endpoint to verify database connectivity
@@ -32,3 +33,6 @@ async def health_check(pool=Depends(get_pool)):
     async with pool.acquire() as conn:
         await conn.fetchval('SELECT 1')
     return {'status': 'ok'}
+
+app.include_router(task_routes.router, prefix='/api')
+app.include_router(user_routes.router, prefix='/api')
