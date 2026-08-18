@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { StatCard } from '../components/StatCard';
 
+
 export function DashboardPage() {
   const [stats, setStats] = useState(null);
   // Fetch dashboard stats from the API on first render

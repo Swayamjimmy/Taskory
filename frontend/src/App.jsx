@@ -3,6 +3,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { TaskListPage } from './pages/TaskListPage';
 import { TaskDetailPage } from './pages/TaskDetailPage';
 import { KanbanPage } from './pages/KanbanPage';
+import { ExternalUsers } from './components/ExternalUsers';
 
 // App shell with navigation and routing
 function App() {
@@ -12,12 +13,15 @@ function App() {
         <Link to='/' className='hover:underline'>Dashboard</Link>
         <Link to='/tasks' className='hover:underline'>Tasks</Link>
         <Link to='/kanban' className='text-white hover:underline'>Kanban</Link>
+        <Link to='/team' className='text-white hover:underline'>Team</Link>
+
       </nav>
       <Routes>
         <Route path='/' element={<DashboardPage />} />
         <Route path='/tasks' element={<TaskListPage />} />
         <Route path='/tasks/:id' element={<TaskDetailPage />} />
         <Route path='/kanban' element={<KanbanPage />} />
+        <Route path='/team' element={<ExternalUsers />} />
       </Routes>
     </BrowserRouter>
   );
