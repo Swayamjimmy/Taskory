@@ -20,11 +20,14 @@ export function TaskListPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   // ==========================================
-  // Read filters, sorting and pagination
-  // from the URL
+  // URL PARAMETERS
   // ==========================================
 
-  const page = Number(searchParams.get('page') || 1);
+  const requestedPage = Number(searchParams.get('page') || 1);
+
+  // Keep page at least 1
+  const page = Math.max(1, requestedPage);
+
   const limit = 10;
 
   const status = searchParams.get('status') || '';
@@ -36,14 +39,18 @@ export function TaskListPage() {
   const sortOrder = searchParams.get('sort_order') || 'desc';
 
   // ==========================================
-  // Load users for assignee dropdown
+  // LOAD USERS
   // ==========================================
 
   useEffect(() => {
     const loadUsers = async () => {
       try {
         const data = await api.getUsers();
-        setUsers(data);
+
+        // Supports either:
+        // [user, user, ...]
+        // or { items: [...] }
+        setUsers(Array.isArray(data) ? data : data.items || []);
       } catch (err) {
         console.error('Failed to load users:', err);
       }
@@ -53,7 +60,7 @@ export function TaskListPage() {
   }, []);
 
   // ==========================================
-  // Load tasks whenever URL parameters change
+  // LOAD TASKS
   // ==========================================
 
   useEffect(() => {
@@ -67,10 +74,6 @@ export function TaskListPage() {
     sortBy,
     sortOrder,
   ]);
-
-  // ==========================================
-  // Fetch tasks
-  // ==========================================
 
   const loadTasks = async () => {
     try {
@@ -102,8 +105,50 @@ export function TaskListPage() {
 
       const data = await api.getTasks(params);
 
-      setTasks(data.items || []);
-      setTotal(data.total || 0);
+      const items = data.items || [];
+      const totalCount = data.total || 0;
+
+      // Calculate the actual number of pages
+      const totalPages = Math.ceil(totalCount / limit);
+
+      /*
+       * If the requested page is beyond the last page,
+       * move the URL to the last valid page.
+       *
+       * Example:
+       *
+       * /tasks?page=999
+       *
+       * Total tasks = 47
+       * limit = 10
+       * totalPages = 5
+       *
+       * URL becomes:
+       *
+       * /tasks?page=5
+       */
+      if (totalPages > 0 && page > totalPages) {
+        setSearchParams((params) => {
+          params.set('page', String(totalPages));
+          return params;
+        });
+
+        return;
+      }
+
+      // If someone manually entered page=0 or a negative page,
+      // normalize it to page 1.
+      if (requestedPage < 1) {
+        setSearchParams((params) => {
+          params.set('page', '1');
+          return params;
+        });
+
+        return;
+      }
+
+      setTasks(items);
+      setTotal(totalCount);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to load tasks.');
@@ -113,7 +158,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Search
+  // SEARCH
   // ==========================================
 
   const handleSearchChange = (e) => {
@@ -126,6 +171,7 @@ export function TaskListPage() {
         params.delete('search');
       }
 
+      // Filters always return to page 1
       params.set('page', '1');
 
       return params;
@@ -133,7 +179,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Status filter
+  // STATUS FILTER
   // ==========================================
 
   const handleStatusChange = (e) => {
@@ -153,7 +199,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Priority filter
+  // PRIORITY FILTER
   // ==========================================
 
   const handlePriorityChange = (e) => {
@@ -173,7 +219,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Assignee filter
+  // ASSIGNEE FILTER
   // ==========================================
 
   const handleAssigneeChange = (e) => {
@@ -193,7 +239,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Sorting
+  // SORTING
   // ==========================================
 
   const handleSortChange = (e) => {
@@ -209,7 +255,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Pagination
+  // PAGINATION
   // ==========================================
 
   const handlePageChange = (newPage) => {
@@ -221,7 +267,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Clear filters
+  // CLEAR FILTERS
   // ==========================================
 
   const clearFilters = () => {
@@ -229,7 +275,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // After task is created/updated
+  // AFTER TASK SAVE
   // ==========================================
 
   const handleSaved = () => {
@@ -238,7 +284,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // Determine whether filters are active
+  // ACTIVE FILTER CHECK
   // ==========================================
 
   const hasFilters =
@@ -250,7 +296,7 @@ export function TaskListPage() {
     sortOrder !== 'desc';
 
   // ==========================================
-  // Render
+  // RENDER
   // ==========================================
 
   return (
@@ -416,10 +462,11 @@ export function TaskListPage() {
             </option>
           </select>
 
-          {/* Clear */}
+          {/* Clear filters */}
 
           {hasFilters && (
             <button
+              type="button"
               onClick={clearFilters}
               className="border rounded px-3 py-2 text-gray-600 hover:bg-gray-50"
             >
@@ -432,7 +479,7 @@ export function TaskListPage() {
       </div>
 
       {/* ========================================
-          ERROR STATE
+          ERROR
       ======================================== */}
 
       {error && (
@@ -445,6 +492,7 @@ export function TaskListPage() {
             </span>
 
             <button
+              type="button"
               onClick={loadTasks}
               className="font-medium underline"
             >
@@ -457,7 +505,7 @@ export function TaskListPage() {
       )}
 
       {/* ========================================
-          TASK TABLE
+          TABLE
       ======================================== */}
 
       <div className="bg-white border rounded-lg overflow-hidden">
@@ -470,9 +518,11 @@ export function TaskListPage() {
             Loading tasks...
           </div>
 
-        ) : tasks.length === 0 ? (
+        ) : total === 0 ? (
 
-          /* Empty state */
+          /* =====================================
+             NO TASKS AT ALL / NO FILTER MATCH
+             ===================================== */
 
           <div className="p-10 text-center">
 
@@ -481,10 +531,13 @@ export function TaskListPage() {
             </h3>
 
             <p className="text-gray-500 mt-1">
-              Try changing your filters or create a new task.
+              {hasFilters
+                ? 'Try changing your filters.'
+                : 'Create your first task to get started.'}
             </p>
 
             <button
+              type="button"
               onClick={() => setCreateOpen(true)}
               className="mt-4 bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
             >
@@ -494,6 +547,10 @@ export function TaskListPage() {
           </div>
 
         ) : (
+
+          /* =====================================
+             TASK TABLE
+             ===================================== */
 
           <table className="w-full">
 
@@ -581,7 +638,7 @@ export function TaskListPage() {
                       'Unassigned'}
                   </td>
 
-                  {/* Due Date */}
+                  {/* Due date */}
 
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.due_date
@@ -589,7 +646,7 @@ export function TaskListPage() {
                       : '—'}
                   </td>
 
-                  {/* Created Date */}
+                  {/* Created */}
 
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.created_at
@@ -597,7 +654,7 @@ export function TaskListPage() {
                       : '—'}
                   </td>
 
-                  {/* Updated Date */}
+                  {/* Updated */}
 
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.updated_at
@@ -618,10 +675,10 @@ export function TaskListPage() {
       </div>
 
       {/* ========================================
-          PAGINATION
+          PAGINATION FOOTER
       ======================================== */}
 
-      {!loading && tasks.length > 0 && (
+      {!loading && total > 0 && (
 
         <div className="mt-4 flex items-center justify-between">
 
