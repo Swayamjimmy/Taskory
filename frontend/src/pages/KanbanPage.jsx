@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 import { PriorityBadge } from '../components/PriorityBadge';
 
@@ -9,30 +10,47 @@ const COLUMNS = [
   { key: 'blocked', label: 'Blocked' },
 ];
 
+// Helper to format the status key into readable text for the toast (e.g., "in_progress" -> "in progress")
+const formatStatus = (status) => status.replace('_', ' ');
+
 export function KanbanPage() {
   const [tasks, setTasks] = useState([]);
   const [dragOver, setDragOver] = useState(null);
   const draggedId = useRef(null);
 
   const loadTasks = () => api.getTasks({ limit: 100 }).then(data => setTasks(data.items));
-  useEffect(() => { loadTasks(); }, []);
+  
+  useEffect(() => { 
+    loadTasks().catch(() => toast.error('Failed to load tasks')); 
+  }, []);
 
   // --- Drag and Drop Handlers (Desktop) ---
   const handleDragStart = (taskId) => { draggedId.current = taskId; };
   const handleDragOver = (e, colKey) => { e.preventDefault(); setDragOver(colKey); };
+  
   const handleDrop = async (colKey) => {
     if (draggedId.current) {
-      await api.updateTask(draggedId.current, { status: colKey });
-      draggedId.current = null;
-      setDragOver(null);
-      loadTasks();
+      try {
+        await api.updateTask(draggedId.current, { status: colKey });
+        draggedId.current = null;
+        setDragOver(null);
+        toast.success(`Task moved to ${formatStatus(colKey)}`);
+        loadTasks();
+      } catch (error) {
+        toast.error('Failed to move task');
+      }
     }
   };
 
   // --- Dropdown Handler (Mobile Fallback) ---
   const handleMobileStatusChange = async (taskId, newStatus) => {
-    await api.updateTask(taskId, { status: newStatus });
-    loadTasks();
+    try {
+      await api.updateTask(taskId, { status: newStatus });
+      toast.success(`Task moved to ${formatStatus(newStatus)}`);
+      loadTasks();
+    } catch (error) {
+      toast.error('Failed to move task');
+    }
   };
 
   return (
@@ -59,8 +77,7 @@ export function KanbanPage() {
                   <PriorityBadge priority={task.priority} />
                 </div>
                 
-                {/* --- MOBILE FALLBACK DROPDOWN --- */}
-                {/* Visible only on touch screens / small screens (md:hidden) */}
+                {/* Mobile Fallback Dropdown */}
                 <div className="mt-auto pt-2 border-t dark:border-gray-600 md:hidden">
                   <select 
                     value={task.status}
@@ -73,8 +90,6 @@ export function KanbanPage() {
                     <option value="blocked">Move to Blocked</option>
                   </select>
                 </div>
-                {/* -------------------------------- */}
-
               </div>
             ))}
           </div>

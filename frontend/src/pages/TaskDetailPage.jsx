@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 import { StatusBadge } from '../components/StatusBadge';
 import { PriorityBadge } from '../components/PriorityBadge';
@@ -15,25 +16,41 @@ export function TaskDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadTask = () => api.getTask(id).then(setTask);
   const loadComments = () => api.getComments(id).then(setComments);
 
   useEffect(() => {
-    Promise.all([loadTask(), loadComments()]).finally(() => setLoading(false));
+    Promise.all([loadTask(), loadComments()])
+      .catch(() => toast.error('Failed to load task details'))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleDelete = async () => {
-    await api.deleteTask(id);
-    navigate('/tasks');
+    setIsDeleting(true);
+    try {
+      await api.deleteTask(id);
+      toast.success('Task deleted successfully');
+      navigate('/tasks');
+    } catch (error) {
+      toast.error('Failed to delete task');
+      setIsDeleting(false);
+    }
   };
   
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
-    await api.addComment(id, { comment: commentText, user_id: null });
-    setCommentText('');
-    loadComments();
+    
+    try {
+      await api.addComment(id, { comment: commentText, user_id: null });
+      setCommentText('');
+      toast.success('Comment posted');
+      loadComments();
+    } catch (error) {
+      toast.error('Failed to post comment');
+    }
   };
 
   if (loading) {
@@ -68,13 +85,9 @@ export function TaskDetailPage() {
 
       {/* Main Task Card */}
       <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
-        
-        {/* Card Header */}
         <div className="p-6 border-b dark:border-gray-700 flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-              {task.title}
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{task.title}</h1>
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge status={task.status} />
               <PriorityBadge priority={task.priority} />
@@ -100,7 +113,6 @@ export function TaskDetailPage() {
           </div>
         </div>
         
-        {/* Card Body - Description */}
         <div className="p-6 bg-gray-50/50 dark:bg-gray-800/50 min-h-[120px]">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
           <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-sm leading-relaxed">
@@ -116,9 +128,7 @@ export function TaskDetailPage() {
         <div className="space-y-6 mb-8">
           {comments.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                No comments yet. Be the first to start the discussion!
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No comments yet. Be the first to start the discussion!</p>
             </div>
           ) : (
             comments.map(c => (
@@ -128,25 +138,16 @@ export function TaskDetailPage() {
                 </div>
                 <div className="flex-1 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4 border border-gray-100 dark:border-gray-700/50">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium text-sm text-gray-900 dark:text-gray-200">
-                      {c.user_name || 'Anonymous'}
-                    </span>
-                    {c.created_at && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(c.created_at).toLocaleDateString()}
-                      </span>
-                    )}
+                    <span className="font-medium text-sm text-gray-900 dark:text-gray-200">{c.user_name || 'Anonymous'}</span>
+                    {c.created_at && <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(c.created_at).toLocaleDateString()}</span>}
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                    {c.comment}
-                  </p>
+                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{c.comment}</p>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Comment Input Form */}
         <form onSubmit={handleAddComment} className="flex items-start gap-4 pt-4 border-t dark:border-gray-700">
           <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-500 dark:text-gray-400 font-bold shadow-sm">
             U
@@ -169,10 +170,8 @@ export function TaskDetailPage() {
         </form>
       </div>
 
-      {/* Edit Modal */}
       <TaskFormModal open={editOpen} onClose={() => setEditOpen(false)} task={task} onSaved={loadTask} />
       
-      {/* Delete Confirmation Modal */}
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete Task">
         <p className="mb-6 text-gray-700 dark:text-gray-300">
           Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-white">"{task.title}"</span>? This action cannot be undone.
@@ -180,15 +179,17 @@ export function TaskDetailPage() {
         <div className="flex justify-end gap-3">
           <button 
             onClick={() => setDeleteOpen(false)} 
-            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+            disabled={isDeleting}
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50"
           >
             Cancel
           </button>
           <button 
             onClick={handleDelete} 
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium shadow-sm"
+            disabled={isDeleting}
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium shadow-sm disabled:opacity-50"
           >
-            Delete Task
+            {isDeleting ? 'Deleting...' : 'Delete Task'}
           </button>
         </div>
       </Modal>
