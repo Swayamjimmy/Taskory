@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+
 import { api } from '../services/api';
 import { Pagination } from '../components/Pagination';
 import { StatusBadge } from '../components/StatusBadge';
@@ -9,12 +10,19 @@ import { TaskFormModal } from '../components/TaskFormModal';
 export function TaskListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // ==========================================
+  // STATE
+  // ==========================================
+
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
 
   const [total, setTotal] = useState(0);
 
-  const [loading, setLoading] = useState(false);
+  // Start as true so the empty state cannot
+  // appear before the first request completes.
+  const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -23,20 +31,54 @@ export function TaskListPage() {
   // URL PARAMETERS
   // ==========================================
 
-  const requestedPage = Number(searchParams.get('page') || 1);
+  const rawPage = searchParams.get('page');
 
-  // Keep page at least 1
-  const page = Math.max(1, requestedPage);
+  /*
+   * URLSearchParams always gives us strings.
+   *
+   * Examples:
+   *
+   * "1"   -> 1
+   * "-1"  -> -1
+   * "abc" -> NaN
+   * null  -> no page parameter
+   */
+  const parsedPage = rawPage
+    ? Number(rawPage)
+    : 1;
+
+  const pageIsInvalid =
+    !Number.isInteger(parsedPage) ||
+    parsedPage < 1;
+
+  /*
+   * For an invalid page we temporarily use 1
+   * internally. The effect below will correct
+   * the actual URL.
+   */
+  const page = pageIsInvalid
+    ? 1
+    : parsedPage;
 
   const limit = 10;
 
-  const status = searchParams.get('status') || '';
-  const priority = searchParams.get('priority') || '';
-  const assignee = searchParams.get('assignee') || '';
-  const search = searchParams.get('search') || '';
+  const status =
+    searchParams.get('status') || '';
 
-  const sortBy = searchParams.get('sort_by') || 'created_at';
-  const sortOrder = searchParams.get('sort_order') || 'desc';
+  const priority =
+    searchParams.get('priority') || '';
+
+  const assignee =
+    searchParams.get('assignee') || '';
+
+  const search =
+    searchParams.get('search') || '';
+
+  const sortBy =
+    searchParams.get('sort_by') || 'created_at';
+
+  const sortOrder =
+    searchParams.get('sort_order') || 'desc';
 
   // ==========================================
   // LOAD USERS
@@ -47,12 +89,16 @@ export function TaskListPage() {
       try {
         const data = await api.getUsers();
 
-        // Supports either:
-        // [user, user, ...]
-        // or { items: [...] }
-        setUsers(Array.isArray(data) ? data : data.items || []);
+        if (Array.isArray(data)) {
+          setUsers(data);
+        } else {
+          setUsers(data.items || []);
+        }
       } catch (err) {
-        console.error('Failed to load users:', err);
+        console.error(
+          'Failed to load users:',
+          err
+        );
       }
     };
 
@@ -60,10 +106,47 @@ export function TaskListPage() {
   }, []);
 
   // ==========================================
+  // NORMALIZE INVALID PAGE
+  // ==========================================
+
+  useEffect(() => {
+    if (!pageIsInvalid) {
+      return;
+    }
+
+    /*
+     * Examples:
+     *
+     * /tasks?page=-1
+     * /tasks?page=0
+     * /tasks?page=abc
+     *
+     * all become:
+     *
+     * /tasks?page=1
+     */
+
+    setLoading(true);
+
+    setSearchParams((params) => {
+      params.set('page', '1');
+      return params;
+    });
+  }, [pageIsInvalid]);
+
+  // ==========================================
   // LOAD TASKS
   // ==========================================
 
   useEffect(() => {
+    /*
+     * Don't request anything while we're
+     * correcting an invalid page.
+     */
+    if (pageIsInvalid) {
+      return;
+    }
+
     loadTasks();
   }, [
     page,
@@ -73,12 +156,17 @@ export function TaskListPage() {
     search,
     sortBy,
     sortOrder,
+    pageIsInvalid,
   ]);
 
   const loadTasks = async () => {
     try {
       setLoading(true);
       setError('');
+
+      // ========================================
+      // BUILD API PARAMETERS
+      // ========================================
 
       const params = {
         page,
@@ -103,55 +191,74 @@ export function TaskListPage() {
         params.search = search;
       }
 
+      // ========================================
+      // REQUEST
+      // ========================================
+
       const data = await api.getTasks(params);
 
       const items = data.items || [];
-      const totalCount = data.total || 0;
 
-      // Calculate the actual number of pages
-      const totalPages = Math.ceil(totalCount / limit);
+      const totalCount =
+        Number(data.total || 0);
 
       /*
-       * If the requested page is beyond the last page,
-       * move the URL to the last valid page.
-       *
+       * Prefer the pages value from the backend.
+       * Fall back to calculating it ourselves.
+       */
+      const totalPages =
+        Number(data.pages) ||
+        Math.ceil(totalCount / limit);
+
+      // ========================================
+      // PAGE ABOVE MAXIMUM
+      // ========================================
+
+      /*
        * Example:
        *
+       * User enters:
        * /tasks?page=999
        *
-       * Total tasks = 47
-       * limit = 10
-       * totalPages = 5
+       * Backend says:
+       * total = 47
+       * pages = 5
        *
-       * URL becomes:
-       *
+       * Redirect to:
        * /tasks?page=5
        */
-      if (totalPages > 0 && page > totalPages) {
+
+      if (
+        totalPages > 0 &&
+        page > totalPages
+      ) {
         setSearchParams((params) => {
-          params.set('page', String(totalPages));
+          params.set(
+            'page',
+            String(totalPages)
+          );
+
           return params;
         });
 
         return;
       }
 
-      // If someone manually entered page=0 or a negative page,
-      // normalize it to page 1.
-      if (requestedPage < 1) {
-        setSearchParams((params) => {
-          params.set('page', '1');
-          return params;
-        });
-
-        return;
-      }
+      // ========================================
+      // VALID RESPONSE
+      // ========================================
 
       setTasks(items);
       setTotal(totalCount);
+
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to load tasks.');
+
+      setError(
+        err.message ||
+        'Failed to load tasks.'
+      );
+
     } finally {
       setLoading(false);
     }
@@ -171,7 +278,6 @@ export function TaskListPage() {
         params.delete('search');
       }
 
-      // Filters always return to page 1
       params.set('page', '1');
 
       return params;
@@ -243,12 +349,24 @@ export function TaskListPage() {
   // ==========================================
 
   const handleSortChange = (e) => {
-    const [field, order] = e.target.value.split(':');
+    const [field, order] =
+      e.target.value.split(':');
 
     setSearchParams((params) => {
-      params.set('sort_by', field);
-      params.set('sort_order', order);
-      params.set('page', '1');
+      params.set(
+        'sort_by',
+        field
+      );
+
+      params.set(
+        'sort_order',
+        order
+      );
+
+      params.set(
+        'page',
+        '1'
+      );
 
       return params;
     });
@@ -260,7 +378,10 @@ export function TaskListPage() {
 
   const handlePageChange = (newPage) => {
     setSearchParams((params) => {
-      params.set('page', String(newPage));
+      params.set(
+        'page',
+        String(newPage)
+      );
 
       return params;
     });
@@ -284,7 +405,7 @@ export function TaskListPage() {
   };
 
   // ==========================================
-  // ACTIVE FILTER CHECK
+  // ACTIVE FILTERS
   // ==========================================
 
   const hasFilters =
@@ -296,15 +417,13 @@ export function TaskListPage() {
     sortOrder !== 'desc';
 
   // ==========================================
-  // RENDER
+  // RETURN
   // ==========================================
 
   return (
     <div className="p-6">
 
-      {/* ========================================
-          HEADER
-      ======================================== */}
+      {/* HEADER */}
 
       <div className="flex items-center justify-between mb-6">
 
@@ -319,6 +438,7 @@ export function TaskListPage() {
         </div>
 
         <button
+          type="button"
           onClick={() => setCreateOpen(true)}
           className="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
         >
@@ -327,9 +447,7 @@ export function TaskListPage() {
 
       </div>
 
-      {/* ========================================
-          FILTERS
-      ======================================== */}
+      {/* FILTERS */}
 
       <div className="bg-white border rounded-lg p-4 mb-6">
 
@@ -462,7 +580,7 @@ export function TaskListPage() {
             </option>
           </select>
 
-          {/* Clear filters */}
+          {/* Clear */}
 
           {hasFilters && (
             <button
@@ -478,9 +596,7 @@ export function TaskListPage() {
 
       </div>
 
-      {/* ========================================
-          ERROR
-      ======================================== */}
+      {/* ERROR */}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6">
@@ -504,25 +620,17 @@ export function TaskListPage() {
         </div>
       )}
 
-      {/* ========================================
-          TABLE
-      ======================================== */}
+      {/* TASK TABLE */}
 
       <div className="bg-white border rounded-lg overflow-hidden">
 
         {loading ? (
-
-          /* Loading state */
 
           <div className="p-8 text-center text-gray-500">
             Loading tasks...
           </div>
 
         ) : total === 0 ? (
-
-          /* =====================================
-             NO TASKS AT ALL / NO FILTER MATCH
-             ===================================== */
 
           <div className="p-10 text-center">
 
@@ -547,10 +655,6 @@ export function TaskListPage() {
           </div>
 
         ) : (
-
-          /* =====================================
-             TASK TABLE
-             ===================================== */
 
           <table className="w-full">
 
@@ -599,8 +703,6 @@ export function TaskListPage() {
                   className="hover:bg-gray-50"
                 >
 
-                  {/* Task */}
-
                   <td className="px-4 py-4">
 
                     <Link
@@ -618,19 +720,17 @@ export function TaskListPage() {
 
                   </td>
 
-                  {/* Status */}
-
                   <td className="px-4 py-4">
-                    <StatusBadge status={task.status} />
+                    <StatusBadge
+                      status={task.status}
+                    />
                   </td>
 
-                  {/* Priority */}
-
                   <td className="px-4 py-4">
-                    <PriorityBadge priority={task.priority} />
+                    <PriorityBadge
+                      priority={task.priority}
+                    />
                   </td>
-
-                  {/* Assignee */}
 
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.assignee_name ||
@@ -638,27 +738,27 @@ export function TaskListPage() {
                       'Unassigned'}
                   </td>
 
-                  {/* Due date */}
-
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.due_date
-                      ? new Date(task.due_date).toLocaleDateString()
+                      ? new Date(
+                          task.due_date
+                        ).toLocaleDateString()
                       : '—'}
                   </td>
-
-                  {/* Created */}
 
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.created_at
-                      ? new Date(task.created_at).toLocaleDateString()
+                      ? new Date(
+                          task.created_at
+                        ).toLocaleDateString()
                       : '—'}
                   </td>
 
-                  {/* Updated */}
-
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {task.updated_at
-                      ? new Date(task.updated_at).toLocaleDateString()
+                      ? new Date(
+                          task.updated_at
+                        ).toLocaleDateString()
                       : '—'}
                   </td>
 
@@ -674,12 +774,9 @@ export function TaskListPage() {
 
       </div>
 
-      {/* ========================================
-          PAGINATION FOOTER
-      ======================================== */}
+      {/* PAGINATION */}
 
       {!loading && total > 0 && (
-
         <div className="mt-4 flex items-center justify-between">
 
           <p className="text-sm text-gray-500">
@@ -694,12 +791,9 @@ export function TaskListPage() {
           />
 
         </div>
-
       )}
 
-      {/* ========================================
-          CREATE TASK MODAL
-      ======================================== */}
+      {/* CREATE TASK MODAL */}
 
       <TaskFormModal
         open={createOpen}
