@@ -2,34 +2,86 @@ class TaskRepository:
     def __init__(self, pool):
         self.pool = pool
 
-    async def get_all(self, status=None, priority=None, assignee=None, search=None, page=1, limit=10):
+    async def get_all(
+        self,
+        status=None,
+        priority=None,
+        assignee=None,
+        search=None,
+        page=1,
+        limit=10,
+        sort_by='created_at',
+        sort_order='desc'
+    ):
         # Build WHERE clauses dynamically based on active filters
         conditions = []
         params = []
         idx = 1
+
         if status:
             conditions.append(f'status = ${idx}')
             params.append(status)
             idx += 1
+
         if priority:
             conditions.append(f'priority = ${idx}')
             params.append(priority)
             idx += 1
+
         if assignee:
             conditions.append(f'assigned_to = ${idx}')
             params.append(assignee)
             idx += 1
+
         if search:
             conditions.append(f'title ILIKE ${idx}')
             params.append(f'%{search}%')
             idx += 1
+
         where = 'WHERE ' + ' AND '.join(conditions) if conditions else ''
+
+        # Only allow known database columns to be used for sorting.
+        # This prevents SQL injection through sort_by.
+        allowed_sort_fields = {
+            'created_at': 'created_at',
+            'updated_at': 'updated_at',
+            'due_date': 'due_date',
+            'title': 'title',
+            'priority': 'priority',
+            'status': 'status',
+        }
+
+        sort_column = allowed_sort_fields.get(sort_by, 'created_at')
+
+        # Only allow ASC or DESC.
+        sort_direction = 'ASC' if sort_order.lower() == 'asc' else 'DESC'
+
         # Get total count for pagination metadata
         count_query = f'SELECT COUNT(*) FROM tasks {where}'
         total = await self.pool.fetchval(count_query, *params)
+
         offset = (page - 1) * limit
-        data_query = f'SELECT * FROM tasks {where} ORDER BY created_at DESC LIMIT ${idx} OFFSET ${idx+1}'
-        rows = await self.pool.fetch(data_query, *params, limit, offset)
+
+        data_query = f'''
+            SELECT
+                tasks.*,
+                users.name AS assignee_name
+            FROM tasks
+            LEFT JOIN users
+                ON tasks.assigned_to = users.id
+            {where}
+            ORDER BY {sort_column} {sort_direction}
+            LIMIT ${idx}
+            OFFSET ${idx + 1}
+        '''
+
+        rows = await self.pool.fetch(
+            data_query,
+            *params,
+            limit,
+            offset
+        )
+
         return rows, total
 
     async def get_by_id(self, task_id):

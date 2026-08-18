@@ -11,10 +11,39 @@ def get_pool(request: Request):
 
 # List tasks with optional filtering, search, and pagination
 @router.get('/tasks')
-async def list_tasks(status=None, priority=None, assignee=None, search=None, page=1, limit=10, pool=Depends(get_pool)):
+async def list_tasks(
+    status: str | None = None,
+    priority: str | None = None,
+    assignee: int | None = None,
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 10,
+    sort_by: str = 'created_at',
+    sort_order: str = 'desc',
+    pool=Depends(get_pool),
+):
     repo = TaskRepository(pool)
-    rows, total = await repo.get_all(status, priority, assignee, search, int(page), int(limit))
-    return {'items': [dict(r) for r in rows], 'total': total, 'page': int(page), 'limit': int(limit), 'pages': math.ceil(total / int(limit))}
+
+    rows, total = await repo.get_all(
+        status=status,
+        priority=priority,
+        assignee=assignee,
+        search=search,
+        page=page,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+
+    pages = math.ceil(total / limit) if total else 0
+
+    return {
+        'items': [dict(row) for row in rows],
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'pages': pages,
+    }
 
 # Get a single task by ID
 @router.get('/tasks/{task_id}')
