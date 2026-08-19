@@ -7,14 +7,12 @@ router = APIRouter()
 def get_pool(request: Request):
     return request.app.state.db_pool
 
-# List all users
 @router.get('/users')
 async def list_users(pool=Depends(get_pool)):
     repo = UserRepository(pool)
     rows = await repo.get_all()
     return [dict(r) for r in rows]
 
-# Create a new user
 @router.post('/users', status_code=201)
 async def create_user(data: UserCreate, pool=Depends(get_pool)):
     repo = UserRepository(pool)

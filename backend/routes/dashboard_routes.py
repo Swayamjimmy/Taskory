@@ -7,7 +7,6 @@ def get_pool(request: Request):
 
 @router.get('/dashboard')
 async def get_dashboard(pool=Depends(get_pool)):
-    # Compute all status counts and overdue count in a single query
     row = await pool.fetchrow('''
         SELECT
             COUNT(*) as total_tasks,

@@ -109,7 +109,6 @@ async def add_comment(task_id: int, body: dict, pool=Depends(get_pool)):
 
 @router.get('/tasks/{task_id}/comments')
 async def get_comments(task_id: int, pool=Depends(get_pool)):
-    # Join with users table to include the commenter's name
     rows = await pool.fetch(
         'SELECT c.*, u.name as user_name FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.task_id = $1 ORDER BY c.created_at DESC',
         task_id

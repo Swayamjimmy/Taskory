@@ -5,5 +5,4 @@ router = APIRouter()
 
 @router.get('/external/users')
 async def get_external_users():
-    # Delegate to the service layer which handles caching
     return await fetch_external_users()
