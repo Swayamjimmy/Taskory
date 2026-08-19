@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast'; // Import toast
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 import { Modal } from './Modal';
 
@@ -41,15 +41,15 @@ function TaskForm({ task, users, onClose, onSaved }) {
     try {
       if (task) {
         await api.updateTask(task.id, data);
-        toast.success('Task updated successfully!'); // Success toast
+        toast.success('Task updated successfully!');
       } else {
         await api.createTask(data);
-        toast.success('New task created!'); // Success toast
+        toast.success('New task created!');
       }
       onSaved();
       onClose();
     } catch (error) {
-      toast.error(error.message || 'Something went wrong.'); // Error toast
+      toast.error(error.message || 'Something went wrong.'); 
     } finally {
       setIsSubmitting(false);
     }

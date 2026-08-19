@@ -21,8 +21,6 @@ async function request(path, options = {}) {
 
     throw new Error(message);
   }
-
-  // Handle responses with no body, such as DELETE 204
   if (response.status === 204) {
     return null;
   }
@@ -34,7 +32,6 @@ function buildQueryParams(params = {}) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    // Don't send undefined, null, or empty string values
     if (value !== undefined && value !== null && value !== '') {
       searchParams.append(key, value);
     }
@@ -46,9 +43,6 @@ function buildQueryParams(params = {}) {
 }
 
 export const api = {
-  // =========================
-  // Tasks
-  // =========================
 
   getTasks: (params = {}) => {
     const query = buildQueryParams(params);
@@ -79,10 +73,6 @@ export const api = {
     });
   },
 
-  // =========================
-  // Users
-  // =========================
-
   getUsers: () => {
     return request('/users');
   },
@@ -93,10 +83,6 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
-
-  // =========================
-  // Comments
-  // =========================
 
   getComments: (taskId) => {
     return request(`/tasks/${taskId}/comments`);
@@ -109,25 +95,13 @@ export const api = {
     });
   },
 
-  // =========================
-  // Dashboard
-  // =========================
-
   getDashboard: () => {
     return request('/dashboard');
   },
 
-  // =========================
-  // External API
-  // =========================
-
   getExternalUsers: () => {
     return request('/external/users');
   },
-
-  // =========================
-  // Seed data
-  // =========================
 
   seed: () => {
     return request('/seed', {

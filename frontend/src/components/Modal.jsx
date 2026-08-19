@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 export function Modal({ open, onClose, title, children }) {
-  // Prevent body scrolling when the modal is open
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -15,7 +14,6 @@ export function Modal({ open, onClose, title, children }) {
 
   if (!open) return null;
 
-  // Allow closing the modal by clicking the backdrop
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();

@@ -42,7 +42,7 @@ export function KanbanPage() {
     }
   };
 
-  // --- Dropdown Handler (Mobile Fallback) ---
+  // mobile fallback 
   const handleMobileStatusChange = async (taskId, newStatus) => {
     try {
       await api.updateTask(taskId, { status: newStatus });
@@ -76,8 +76,6 @@ export function KanbanPage() {
                 <div className='flex gap-1 mb-2'>
                   <PriorityBadge priority={task.priority} />
                 </div>
-                
-                {/* Mobile Fallback Dropdown */}
                 <div className="mt-auto pt-2 border-t dark:border-gray-600 md:hidden">
                   <select 
                     value={task.status}
