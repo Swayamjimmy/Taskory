@@ -4,7 +4,6 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // Check local storage or system preference on initial load
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme) return savedTheme;
@@ -34,5 +33,4 @@ export function ThemeProvider({ children }) {
   );
 }
 
-// Custom hook for easy access
 export const useTheme = () => useContext(ThemeContext);
