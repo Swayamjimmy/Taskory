@@ -4,7 +4,6 @@ from backend.routes import task_routes, user_routes, dashboard_routes, external_
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import create_pool, init_db
 
-# Start the database pool on startup, close it on shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.db_pool = await create_pool()
@@ -14,7 +13,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title='Task Manager API', lifespan=lifespan)  
 
-# Allow requests from the React frontend dev server
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['http://localhost:5173'],
@@ -23,11 +21,9 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# Dependency that retrieves the database pool from app state
 def get_pool(request : Request):
     return request.app.state.db_pool
 
-# Health check endpoint to verify database connectivity
 @app.get('/api/health')
 async def health_check(pool=Depends(get_pool)):
     async with pool.acquire() as conn:

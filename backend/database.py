@@ -2,18 +2,15 @@ import asyncpg
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Read the database connection string
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 async def create_pool():
-    # Create a reusable connection pool for PostgreSQL
     return await asyncpg.create_pool(DATABASE_URL)
 
 async def init_db(pool):
-    async with pool.acquire() as conn:  # Get a connection from the pool
+    async with pool.acquire() as conn: 
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
