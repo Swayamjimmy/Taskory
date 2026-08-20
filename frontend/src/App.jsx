@@ -17,7 +17,7 @@ function Navbar() {
           <Link to='/' className='hover:text-blue-400 transition-colors'>Dashboard</Link>
           <Link to='/tasks' className='hover:text-blue-400 transition-colors'>Tasks</Link>
           <Link to='/kanban' className='hover:text-blue-400 transition-colors'>Kanban</Link>
-          <Link to='/team' className='hover:text-blue-400 transition-colors'>Team</Link>
+          <Link to='/rick' className='hover:text-blue-400 transition-colors'>Multiverse</Link>
         </div>
         <button 
           onClick={toggleTheme}
@@ -35,7 +35,6 @@ function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Navbar />
-        {/* Add the Toaster component here */}
         <Toaster 
           position="bottom-right" 
           toastOptions={{
@@ -45,12 +44,12 @@ function App() {
             },
             success: {
               style: {
-                background: '#059669', // Tailwind emerald-600
+                background: '#059669',
               },
             },
             error: {
               style: {
-                background: '#dc2626', // Tailwind red-600
+                background: '#dc2626',
               },
             },
           }} 
@@ -60,7 +59,7 @@ function App() {
           <Route path='/tasks' element={<TaskListPage />} />
           <Route path='/tasks/:id' element={<TaskDetailPage />} />
           <Route path='/kanban' element={<KanbanPage />} />
-          <Route path='/team' element={<ExternalUsers />} />
+          <Route path='/rick' element={<ExternalUsers />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

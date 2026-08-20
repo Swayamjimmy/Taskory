@@ -99,9 +99,8 @@ export const api = {
     return request('/dashboard');
   },
 
-  getExternalUsers: () => {
-    return request('/external/users');
-  },
+    getExternalCharacters: () =>
+    request('/external/characters'),
 
   seed: () => {
     return request('/seed', {
