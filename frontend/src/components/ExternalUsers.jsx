@@ -83,7 +83,6 @@ export function ExternalUsers() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
 
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Multiverse Character Directory
@@ -94,7 +93,6 @@ export function ExternalUsers() {
         </p>
       </div>
 
-      {/* Character Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
         {characters.map((character) => (
@@ -104,14 +102,12 @@ export function ExternalUsers() {
             className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
           >
 
-            {/* Character Image */}
             <img
               src={character.image}
               alt={character.name}
               className="w-full aspect-square object-cover"
             />
 
-            {/* Character Information */}
             <div className="p-4">
 
               <div className="flex items-start justify-between gap-3">
